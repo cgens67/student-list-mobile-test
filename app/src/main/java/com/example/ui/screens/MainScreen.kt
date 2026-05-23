@@ -3,6 +3,8 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -189,32 +191,84 @@ fun MainScreen(viewModel: MainViewModel) {
                 }
             }
 
-            // Student List
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 16.dp)
+            val scrollState = rememberScrollState()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
             ) {
-                if (activeFilteredStudents.isEmpty()) {
-                    item {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(40.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
+                // Favorites Carousel
+                val favoriteStudents = activeFilteredStudents.filter { favorites.contains(it.id) }
+                if (favoriteStudents.isNotEmpty()) {
+                    Text(
+                        text = "Favorites",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                    val favState = androidx.compose.material3.carousel.rememberCarouselState { favoriteStudents.size }
+                    androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel(
+                        state = favState,
+                        preferredItemWidth = 240.dp,
+                        itemSpacing = 8.dp,
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                        modifier = Modifier.fillMaxWidth().height(260.dp)
+                    ) { i ->
+                        val student = favoriteStudents[i]
+                        StudentCard(
+                            student = student,
+                            isCompact = isCompact,
+                            isFavorite = true,
+                            onStudentClick = { viewModel.selectStudentId(it, activeFilteredStudents) },
+                            modifier = Modifier.maskClip(RoundedCornerShape(24.dp))
+                        )
+                    }
+                }
+
+                // Student List Carousel
+                val otherStudents = if (favoriteStudents.isNotEmpty()) {
+                    activeFilteredStudents.filter { !favorites.contains(it.id) }
+                } else {
+                    activeFilteredStudents
+                }
+                
+                if (otherStudents.isEmpty() && favoriteStudents.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(LanguageText.getText(curLang, "empty"), style = MaterialTheme.typography.titleMedium)
                             Text(LanguageText.getText(curLang, "emptySub"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                } else {
-                    items(activeFilteredStudents, key = { it.id }) { student ->
+                } else if (otherStudents.isNotEmpty()) {
+                    Text(
+                        text = if (favoriteStudents.isNotEmpty()) "Other Students" else LanguageText.getText(curLang, "all"),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                    val state = androidx.compose.material3.carousel.rememberCarouselState { otherStudents.size }
+                    androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel(
+                        state = state,
+                        preferredItemWidth = 240.dp,
+                        itemSpacing = 8.dp,
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                        modifier = Modifier.fillMaxWidth().height(260.dp)
+                    ) { i ->
+                        val student = otherStudents[i]
                         StudentCard(
                             student = student,
                             isCompact = isCompact,
-                            isFavorite = favorites.contains(student.id),
-                            onStudentClick = { viewModel.selectStudentId(it, activeFilteredStudents) }
+                            isFavorite = false,
+                            onStudentClick = { viewModel.selectStudentId(it, activeFilteredStudents) },
+                            modifier = Modifier.maskClip(RoundedCornerShape(24.dp))
                         )
                     }
                 }
+                
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
@@ -225,71 +279,76 @@ fun StudentCard(
     student: Student,
     isCompact: Boolean,
     isFavorite: Boolean,
-    onStudentClick: (String) -> Unit
+    onStudentClick: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
+            .fillMaxSize()
             .clickable { onStudentClick(student.id) },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(if (isCompact) 12.dp else 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            if (!isCompact) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                        .size(48.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = student.name.take(1).uppercase(),
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        fontSize = 24.sp,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
-                Spacer(modifier = Modifier.width(16.dp))
+                
+                if (isFavorite) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "Favorite",
+                        tint = Color(0xFFFF2D55),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column {
                 Text(
                     text = student.name,
-                    style = if (isCompact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${student.id} • ${student.cn.ifEmpty { "-" }}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (!isCompact) {
-                    Text(
-                        text = "${student.id} • ${student.cn.ifEmpty { "-" }}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                if (student.newClass.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SuggestionChip(
+                        onClick = { },
+                        label = { Text("Class ${student.newClass}") }
                     )
                 }
             }
-
-            if (isFavorite) {
-                Icon(
-                    imageVector = Icons.Default.Favorite,
-                    contentDescription = "Favorite",
-                    tint = Color(0xFFFF2D55),
-                    modifier = Modifier.size(20.dp).padding(end = 8.dp)
-                )
-            }
-
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "View Details",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

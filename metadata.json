@@ -1,0 +1,6 @@
+{
+  "name": "Student Allocation List 2026",
+  "description": "Native Android app to check, filter, and manage Student Allocations for 2026. Powered by Firebase and featuring offline persistence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
